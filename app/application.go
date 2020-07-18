@@ -11,6 +11,7 @@ import (
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/handlers"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/env"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/errorx"
+	"github.com/f4nt0md3v/tic-tac-go-beeline/app/repositories"
 )
 
 func StartApplication() {
@@ -20,9 +21,6 @@ func StartApplication() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.Static("./public"))
-
-	// Specify handlers
-	e.GET("/ws", handlers.WebsocketHandler)
 
 	// Setup Postgres
 	port, err := strconv.Atoi(env.GetEnvVariable(constants.DbPort))
@@ -43,6 +41,19 @@ func StartApplication() {
 	err = postgres.Migrate(db)
 	errorx.Must(err)
 
+	repo := repositories.NewGameRepo(db)
+
+	// Middleware to inject db connection into context to pass to handlers
+	e.Use(func(h echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("GAME_REPO", repo)
+			return h(c)
+		}
+	})
+
+	// Specify handlers
+	e.GET("/ws", handlers.WebsocketHandler)
+
 	// os.Exit(1) in case we can't start from the port
-	e.Logger.Fatal(e.Start(":1323"))
+	e.Logger.Fatal(e.Start(":8081"))
 }

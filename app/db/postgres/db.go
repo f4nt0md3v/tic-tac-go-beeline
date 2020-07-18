@@ -12,11 +12,14 @@ import (
 const (
 	migrateScript = `
 		CREATE TABLE IF NOT EXISTS games(
-		    id         SERIAL UNIQUE NOT NULL PRIMARY KEY,
-		    user_id    VARCHAR (50) NOT NULL,
-		    game_id    VARCHAR (50) NOT NULL,
-		    move       VARCHAR (10) NOT NULL,
-		    created_on TIMESTAMP NOT NULL
+		    id                SERIAL UNIQUE NOT NULL PRIMARY KEY,
+		    game_id           VARCHAR (50) NOT NULL,
+		    first_user_id     VARCHAR (50),
+		    second_user_id    VARCHAR (50),
+		    state             VARCHAR (50) NOT NULL,
+		    last_move_user_id VARCHAR (50) NOT NULL,
+		    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+		    last_modified_at  TIMESTAMP NOT NULL DEFAULT NOW()
 		);
 	`
 )
