@@ -103,6 +103,7 @@ class GamePage extends React.Component {
 
     handleWebSocketMessage = (e) => {
         const jsonData = JSON.parse(e.data);
+        alert(jsonData.command);
         if (jsonData.command) {
             switch (jsonData.command) {
                 case "GENERATE_NEW_GAME":

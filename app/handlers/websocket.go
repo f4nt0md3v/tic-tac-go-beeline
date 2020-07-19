@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -8,22 +9,67 @@ import (
 	"github.com/satori/go.uuid"
 
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/models"
+	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/context"
+	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/websocketx"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/repositories"
 )
 
 var (
-	upg = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
+	upg = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		// CheckOrigin: func(r *http.Request) bool { return true }, // TODO: comment out or remove next line on production
+	}
 )
 
 const (
-	CmdGenerateNewGame = "GENERATE_NEW_GAME"
-	CmdJoinGame        = "JOIN_GAME"
-	CmdNewMove         = "NEW_MOVE"
+	CmdGenerateNewGame   = "GENERATE_NEW_GAME"
+	CmdJoinGame          = "JOIN_GAME"
+	CmdNewMove           = "NEW_MOVE"
+	CmdOpponentConnected = "OPPONENT_CONNECTED"
 )
 
-func WebsocketHandler(c echo.Context) error {
-	// TODO: comment out or remove next line on production
-	upg.CheckOrigin = func(r *http.Request) bool { return true }
+// serveWs handles websocket requests from the peer.
+func ServeWs(c *context.AppContext, w http.ResponseWriter, r *http.Request) {
+	conn, err := upg.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	client := &websocketx.Client{Pool: c.Pool, Conn: conn, Send: make(chan []byte, 256)}
+	client.Pool.Register <- client
+
+	// Allow collection of memory referenced by the caller by doing all work in new goroutines.
+	go client.WritePump()
+	go client.ReadPump()
+}
+
+func WebsocketHandler(c *context.AppContext, w http.ResponseWriter, r *http.Request) {
+	// Upgrade HTTP connection to WebSocket
+	conn, err := upg.Upgrade(w, r, nil)
+	if err != nil {
+		c.Logger.Error(err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.Logger.Error(err)
+		}
+	}()
+
+	c.Logger.Info("Client connected...")
+	client := &websocketx.Client{
+		Pool: c.Pool,
+		Conn: conn,
+		Send: make(chan []byte, 256),
+	}
+	client.Pool.Register <- client
+
+	// Allow collection of memory referenced by the caller by doing all work in new goroutines.
+	go client.WritePump()
+	go client.ReadPump()
+}
+
+func OldWebsocketHandler(c echo.Context) error {
 	// Upgrade HTTP connection to WebSocket
 	ws, err := upg.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
@@ -54,7 +100,7 @@ func WebsocketHandler(c echo.Context) error {
 			c.Logger().Print("Generating a new game...")
 			gameInfo, err := GenerateNewGame(c)
 			if err != nil {
-				errResp := models.ErrorResponse{
+				errResp := models.Response{
 					Code:  http.StatusInternalServerError,
 					Error: err.Error(),
 				}
@@ -78,7 +124,7 @@ func WebsocketHandler(c echo.Context) error {
 		case CmdJoinGame:
 			c.Logger().Print("Joining the game game...")
 			if req.GameInfo.GameId == "" {
-				errResp := models.ErrorResponse{
+				errResp := models.Response{
 					Code:  http.StatusBadRequest,
 					Error: "No game id provided",
 				}
@@ -90,7 +136,7 @@ func WebsocketHandler(c echo.Context) error {
 
 			gameInfo, err := JoinGame(req.GameInfo.GameId, c)
 			if err != nil {
-				errResp := models.ErrorResponse{
+				errResp := models.Response{
 					Code:  http.StatusInternalServerError,
 					Error: err.Error(),
 				}
@@ -114,7 +160,7 @@ func WebsocketHandler(c echo.Context) error {
 		case CmdNewMove:
 			c.Logger().Print("Making a move...")
 			if req.GameInfo.GameId != "" && req.GameInfo.State != "" {
-				errResp := models.ErrorResponse{
+				errResp := models.Response{
 					Code:  http.StatusBadRequest,
 					Error: "No game state provided",
 				}
@@ -126,7 +172,7 @@ func WebsocketHandler(c echo.Context) error {
 
 			gameInfo, err := NewMove(req.GameInfo, c)
 			if err != nil {
-				errResp := models.ErrorResponse{
+				errResp := models.Response{
 					Code:  http.StatusInternalServerError,
 					Error: err.Error(),
 				}

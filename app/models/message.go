@@ -11,9 +11,6 @@ type Response struct {
 	Command  string `json:"command,omitempty"`
 	GameInfo Game   `json:"gameInfo,omitempty"`
 	Message  string `json:"message,omitempty"`
-}
-
-type ErrorResponse struct {
-	Code  int    `json:"code"`
-	Error string `json:"error"`
+	Type     int    `json:"type,omitempty"`
+	Error    string `json:"error,omitempty"`
 }

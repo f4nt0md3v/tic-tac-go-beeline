@@ -7,4 +7,5 @@ const (
 	DbPass  = "POSTGRES_PASSWORD"
 	DbName  = "POSTGRES_DB"
 	AppMode = "APP_MODE"
+	AppPort = "APP_PORT"
 )
