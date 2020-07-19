@@ -65,7 +65,7 @@ func StartApplication() {
 
 	sugar.Infof("Setting up endpoints and handlers")
 	// Setup file server for static frontend files
-	http.Handle("/", http.FileServer(http.Dir("./public/"))) // TODO: change later to the actual location of frontend files
+	http.Handle("/", http.FileServer(http.Dir("./web/build"))) // TODO: change later to the actual location of frontend files
 	// Setup websocket handler
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		handlers.WebsocketHandler(appCtx, w, r)
