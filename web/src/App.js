@@ -1,26 +1,23 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import "bootstrap/dist/css/bootstrap.css";
+import {Route} from "react-router";
+import {HashRouter} from "react-router-dom";
+import IndexPage from "./pages/IndexPage";
+import GamePage from "./pages/GamePage";
+import GameJoinPage from "./pages/GameJoinPage";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+
+class App extends React.Component {
+    render() {
+        return (
+            <HashRouter>
+                <Route exact path="/" component={IndexPage}/>
+                <Route path="/game/start" component={GameJoinPage} />
+                <Route path="/game/join" component={GamePage} />
+                <Route path="/game/ai" component={GamePage} />
+            </HashRouter>
+        );
+    }
 }
 
-export default App;
+export default App

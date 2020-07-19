@@ -18,10 +18,12 @@ var (
 const (
 	CmdGenerateNewGame = "GENERATE_NEW_GAME"
 	CmdJoinGame        = "JOIN_GAME"
-	CmdMakeMove        = "MAKE_MOVE"
+	CmdNewMove         = "NEW_MOVE"
 )
 
 func WebsocketHandler(c echo.Context) error {
+	// TODO: comment out or remove next line on production
+	upg.CheckOrigin = func(r *http.Request) bool { return true }
 	// Upgrade HTTP connection to WebSocket
 	ws, err := upg.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
@@ -58,6 +60,7 @@ func WebsocketHandler(c echo.Context) error {
 			}
 
 			resp := models.Response{
+				Code:     http.StatusCreated,
 				Command:  CmdGenerateNewGame,
 				GameInfo: *gameInfo,
 				Message:  http.StatusText(http.StatusCreated),
@@ -99,7 +102,7 @@ func WebsocketHandler(c echo.Context) error {
 				c.Logger().Error(err)
 			}
 
-		case CmdMakeMove:
+		case CmdNewMove:
 			c.Logger().Print("Making a move...")
 			if req.GameInfo.GameId != "" && req.GameInfo.State != "" {
 				errResp := models.ErrorResponse{
@@ -111,7 +114,7 @@ func WebsocketHandler(c echo.Context) error {
 				}
 			}
 
-			gameInfo, err := MakeMove(req.GameInfo, c)
+			gameInfo, err := NewMove(req.GameInfo, c)
 			if err != nil {
 				errResp := models.ErrorResponse{
 					Code:  http.StatusInternalServerError,
@@ -123,20 +126,10 @@ func WebsocketHandler(c echo.Context) error {
 			}
 
 			resp := models.Response{
-				Command:  CmdJoinGame,
+				Command:  CmdNewMove,
 				Code:     http.StatusOK,
 				GameInfo: *gameInfo,
 				Message:  http.StatusText(http.StatusOK),
-			}
-			if err := ws.WriteJSON(resp); err != nil {
-				c.Logger().Error(err)
-			}
-		default:
-			// Send a OK response by default meaning
-			// that connection established and the message format is correct
-			resp := models.Response{
-				Message: http.StatusText(http.StatusOK),
-				Code:    http.StatusOK,
 			}
 			if err := ws.WriteJSON(resp); err != nil {
 				c.Logger().Error(err)
@@ -189,7 +182,7 @@ func JoinGame(gameId string, c echo.Context) (*models.Game, error) {
 	return curGame, nil
 }
 
-func MakeMove(game models.Game, c echo.Context) (*models.Game, error) {
+func NewMove(game models.Game, c echo.Context) (*models.Game, error) {
 	repo := c.Get("GAME_REPO").(*repositories.GameRepo)
 	curGame, err := repo.FindByGameID(game.GameId)
 	if err != nil {
