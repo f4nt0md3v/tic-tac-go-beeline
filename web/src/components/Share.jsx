@@ -34,7 +34,7 @@ class Share extends React.Component {
     render() {
         return (
             <div>
-                <div className="container">
+                <div className="container container__share">
                     <FontAwesomeIcon size="lg" icon={faSpinner} spin={true} />
                     <br />
                     <p className="loading-text">Ждём оппонента...</p>

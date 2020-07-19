@@ -43,7 +43,7 @@ class GamePage extends React.Component {
             alertText: '',
             alertType: '',
             boardState: new Array(9).fill(2),
-            gameId: '',
+            gameId: this.props.gameCode,
             mode: '',
             opponentId: '',
             shareButtonShow: false,
@@ -74,6 +74,11 @@ class GamePage extends React.Component {
                             this.generateNewGame();
                         }
                     }
+                    if (path === '#/game/join' && this.state.gameId !== '') {
+                        if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                            this.joinGame();
+                        }
+                    }
                 });
         }
     }
@@ -101,14 +106,22 @@ class GamePage extends React.Component {
                 case "GENERATE_NEW_GAME":
                     if (jsonData.code === 201 && jsonData.gameInfo) {
                         this.setState({
-                            gameId: jsonData.gameInfo.gameId,
-                            userId: jsonData.gameInfo.firstUserId,
-                            boardState: jsonData.gameInfo.state.split(','),
+                            gameId:          jsonData.gameInfo.gameId,
+                            userId:          jsonData.gameInfo.firstUserId,
+                            boardState:      jsonData.gameInfo.state.split(','),
                             shareButtonShow: true,
                         });
                     }
                     break;
                 case "JOIN_GAME":
+                    if (jsonData.code === 201 && jsonData.gameInfo) {
+                        this.setState({
+                            gameId:     jsonData.gameInfo.gameId,
+                            opponentId: jsonData.gameInfo.firstUserId,
+                            userId:     jsonData.gameInfo.secondUserId,
+                            boardState: jsonData.gameInfo.state.split(','),
+                        });
+                    }
                     break;
                 default:
                     break;
@@ -125,6 +138,17 @@ class GamePage extends React.Component {
         if (ws || ws.readyState === WebSocket.OPEN) {
             const message = {
                 command: "GENERATE_NEW_GAME"
+            }
+            ws.send(JSON.stringify(message))
+        }
+    }
+
+    joinGame = () => {
+        const {ws} = this.state;
+        if (ws || ws.readyState === WebSocket.OPEN) {
+            const message = {
+                command: "JOIN_GAME",
+                gameId:  this.state.gameId,
             }
             ws.send(JSON.stringify(message))
         }

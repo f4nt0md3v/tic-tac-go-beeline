@@ -4,7 +4,7 @@ import {Route} from "react-router";
 import {HashRouter} from "react-router-dom";
 import IndexPage from "./pages/IndexPage";
 import GamePage from "./pages/GamePage";
-import GameJoinPage from "./pages/GameJoinPage";
+import JoinGamePage from "./pages/JoinGamePage";
 
 
 class App extends React.Component {
@@ -12,12 +12,13 @@ class App extends React.Component {
         return (
             <HashRouter>
                 <Route exact path="/" component={IndexPage}/>
-                <Route path="/game/start" component={GameJoinPage} />
-                <Route path="/game/join" component={GamePage} />
+                <Route path="/game/start" component={GamePage} />
+                <Route path="/game/join/:gameCode" component={GamePage} />
+                <Route path="/game/join" component={JoinGamePage} />
                 <Route path="/game/ai" component={GamePage} />
             </HashRouter>
         );
     }
 }
 
-export default App
+export default App;
