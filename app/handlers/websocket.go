@@ -18,7 +18,7 @@ var (
 	upg = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		// CheckOrigin: func(r *http.Request) bool { return true }, // TODO: comment out or remove next line on production
+		CheckOrigin:     func(r *http.Request) bool { return true }, // TODO: comment out or remove next line on production
 	}
 )
 
