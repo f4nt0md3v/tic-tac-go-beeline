@@ -20,7 +20,7 @@ func StartApplication() {
 	// Specify middleware to use
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.Static("./public"))
+	e.Static("/", "web/build")
 
 	// Setup Postgres
 	port, err := strconv.Atoi(env.GetEnvVariable(constants.DbPort))
@@ -56,4 +56,5 @@ func StartApplication() {
 
 	// os.Exit(1) in case we can't start from the port
 	e.Logger.Fatal(e.Start(":8081"))
+	e.Logger.Print("Application started at port :8081")
 }
