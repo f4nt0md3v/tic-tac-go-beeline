@@ -1,4 +1,4 @@
-package models
+package game
 
 import "time"
 
@@ -8,7 +8,7 @@ type Game struct {
 	FirstUserId    string     `json:"firstUserId,omitempty"`
 	SecondUserId   string     `json:"secondUserId,omitempty"`
 	State          string     `json:"state,omitempty"`
-	LastMoveUserId string     `json:"lastMoveUserId"`
+	LastMoveUserId string     `json:"lastMoveUserId,omitempty"`
 	CreatedAt      *time.Time `json:"createdAt,omitempty"`
 	LastModifiedAt *time.Time `json:"lastModifiedAt,omitempty"`
 }

@@ -11,12 +11,11 @@ import (
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/constants"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/db/postgres"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/handlers"
-	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/context"
+	"github.com/f4nt0md3v/tic-tac-go-beeline/app/models/ctx"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/env"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/errorx"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/middleware"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/middleware/logx"
-	"github.com/f4nt0md3v/tic-tac-go-beeline/app/pkg/websocketx"
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/repositories"
 )
 
@@ -34,7 +33,7 @@ func StartApplication() {
 	port, err := strconv.Atoi(env.GetEnvVariable(constants.DbPort))
 	errorx.Must(err)
 	sugar.Infof("Connecting to Postgres database")
-	db, err := postgres.NewDBSession(postgres.Config{
+	dbConn, err := postgres.NewDBSession(postgres.Config{
 		Host:             env.GetEnvVariable(constants.DbHost),
 		Port:             port,
 		User:             env.GetEnvVariable(constants.DbUser),
@@ -48,28 +47,28 @@ func StartApplication() {
 
 	sugar.Infof("Migrating data to the database")
 	// Migrate database if not exists
-	err = postgres.Migrate(db)
+	err = postgres.Migrate(dbConn)
 	errorx.Must(err)
 
 	sugar.Infof("Database is ready to go")
-	repo := repositories.NewGameRepo(db)
-	dbCtx := context.NewDbContext(db)
+	repo := repositories.NewGameRepo(dbConn, sugar)
+	dbCtx := ctx.NewDbContext(dbConn)
 
 	sugar.Infof("WebSocket pool connections initialized")
 	// Creating new pool of ws connections for concurrent writes
-	pool := websocketx.NewPool()
-	go pool.Run()
+	p := ctx.NewPool(sugar)
+	go p.Start()
 
 	sugar.Infof("Application Context initialized")
 	// Setup application context to inject in later into handlers
-	appCtx := context.NewAppContext(dbCtx, repo, sugar, pool)
+	appCtx := ctx.NewAppContext(dbCtx, repo, sugar, p)
 
 	sugar.Infof("Setting up endpoints and handlers")
 	// Setup file server for static frontend files
 	http.Handle("/", http.FileServer(http.Dir("./public/"))) // TODO: change later to the actual location of frontend files
 	// Setup websocket handler
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		handlers.ServeWs(appCtx, w, r)
+		handlers.WebsocketHandler(appCtx, w, r)
 	})
 	// Specify health check endpoint
 	http.HandleFunc("/health", middleware.Chain(handlers.HealthHandler, logx.Logger()))

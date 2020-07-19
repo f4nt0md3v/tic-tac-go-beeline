@@ -2,10 +2,11 @@ package repositories
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
-	"github.com/f4nt0md3v/tic-tac-go-beeline/app/models"
+	"go.uber.org/zap"
+
+	"github.com/f4nt0md3v/tic-tac-go-beeline/app/models/game"
 )
 
 const (
@@ -35,20 +36,22 @@ const (
 	`
 )
 
-type GameRepo struct {
-	db *sql.DB
-}
 type GameRepository interface {
-	Create(string, string) (*models.Game, error)
-	FindByGameID(ID string) (*models.Game, error)
-	Update(game *models.Game) error
+	Create(string, string) (*game.Game, error)
+	FindByGameID(ID string) (*game.Game, error)
+	Update(game *game.Game) error
 }
 
-func NewGameRepo(db *sql.DB) *GameRepo {
-	return &GameRepo{db: db}
+type GameRepo struct {
+	db     *sql.DB
+	logger *zap.SugaredLogger
 }
 
-func (g *GameRepo) Create(gameId, userId string) (*models.Game, error) {
+func NewGameRepo(db *sql.DB, log *zap.SugaredLogger) *GameRepo {
+	return &GameRepo{db: db, logger: log}
+}
+
+func (g *GameRepo) Create(gameId, userId string) (*game.Game, error) {
 	initState := "2,2,2,2,2,2,2,2,2"
 
 	stmt, err := g.db.Prepare(queryCreateNewGame)
@@ -58,22 +61,16 @@ func (g *GameRepo) Create(gameId, userId string) (*models.Game, error) {
 
 	defer func() {
 		if err = stmt.Close(); err != nil {
-			fmt.Println(err)
+			g.logger.Error(err)
 		}
 	}()
 
-	r, err := stmt.Exec(gameId, userId, initState)
+	_, err = stmt.Exec(gameId, userId, initState)
 	if err != nil {
 		return nil, err
 	}
 
-	lastId, err := r.LastInsertId()
-	if err != nil {
-		fmt.Printf("error while trying to get last inserted id: %s", err)
-	}
-
-	return &models.Game{
-		ID:             int(lastId),
+	return &game.Game{
 		GameId:         gameId,
 		FirstUserId:    userId,
 		SecondUserId:   "",
@@ -93,8 +90,8 @@ type GameRaw struct {
 	LastModifiedAt *time.Time
 }
 
-func (g *GameRaw) toGame() *models.Game {
-	return &models.Game{
+func (g *GameRaw) toGame() *game.Game {
+	return &game.Game{
 		ID:             g.ID,
 		GameId:         g.GameId,
 		FirstUserId:    g.FirstUserId.String,
@@ -106,14 +103,14 @@ func (g *GameRaw) toGame() *models.Game {
 	}
 }
 
-func (g *GameRepo) FindByGameID(id string) (*models.Game, error) {
+func (g *GameRepo) FindByGameID(id string) (*game.Game, error) {
 	stmt, err := g.db.Prepare(queryGetGameById)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err = stmt.Close(); err != nil {
-			fmt.Println(err)
+			g.logger.Error(err)
 		}
 	}()
 
@@ -128,14 +125,14 @@ func (g *GameRepo) FindByGameID(id string) (*models.Game, error) {
 		&gameRaw.CreatedAt,
 		&gameRaw.LastModifiedAt,
 	); err != nil {
-		fmt.Printf("error when trying to get user by id: %s", err)
+		g.logger.Errorf("error when trying to get user by id: %s", err)
 		return nil, err
 	}
-	game := gameRaw.toGame()
-	return game, nil
+	gm := gameRaw.toGame()
+	return gm, nil
 }
 
-func (g *GameRepo) Update(game *models.Game) error {
+func (g *GameRepo) Update(game *game.Game) error {
 	stmt, err := g.db.Prepare(queryUpdateGameWithId)
 	if err != nil {
 		return err
@@ -143,7 +140,7 @@ func (g *GameRepo) Update(game *models.Game) error {
 
 	defer func() {
 		if err = stmt.Close(); err != nil {
-			fmt.Println(err)
+			g.logger.Error(err)
 		}
 	}()
 
@@ -160,7 +157,7 @@ func (g *GameRepo) Update(game *models.Game) error {
 
 	n, err := r.RowsAffected()
 	if err != nil || n == 0 {
-		fmt.Printf("error while trying to update game: %s", err)
+		g.logger.Errorf("error while trying to update game: %s", err)
 	}
 	return nil
 }

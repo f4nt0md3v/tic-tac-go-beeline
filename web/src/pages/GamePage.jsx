@@ -131,7 +131,7 @@ class GamePage extends React.Component {
             }
         } else {
             if (jsonData.error) {
-                alert(jsonData.error)
+                console.log(jsonData)
             }
         }
     }
