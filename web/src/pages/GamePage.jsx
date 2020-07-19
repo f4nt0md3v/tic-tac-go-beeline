@@ -68,16 +68,18 @@ class GamePage extends React.Component {
                 break;
             default:
                 this.setState({mode: '2P'})
-                this.connectWebSocket(()=>{
+                this.connectWebSocket(() => {
                     if (path === "#/game/start") {
                         if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
                             this.generateNewGame();
                         }
                     }
-                    if (path === '#/game/join' && this.state.gameId !== '') {
-                        if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
-                            this.joinGame();
-                        }
+                    if (path.includes('#/game/join') && this.props.match.params.gameId !== '') {
+                        this.setState({gameId: this.props.match.params.gameId}, () => {
+                            if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                                this.joinGame();
+                            }
+                        });
                     }
                 });
         }
@@ -114,7 +116,7 @@ class GamePage extends React.Component {
                     }
                     break;
                 case "JOIN_GAME":
-                    if (jsonData.code === 201 && jsonData.gameInfo) {
+                    if (jsonData.code === 200 && jsonData.gameInfo) {
                         this.setState({
                             gameId:     jsonData.gameInfo.gameId,
                             opponentId: jsonData.gameInfo.firstUserId,
@@ -148,7 +150,9 @@ class GamePage extends React.Component {
         if (ws || ws.readyState === WebSocket.OPEN) {
             const message = {
                 command: "JOIN_GAME",
-                gameId:  this.state.gameId,
+                gameInfo: {
+                    gameId:  this.state.gameId,
+                }
             }
             ws.send(JSON.stringify(message))
         }

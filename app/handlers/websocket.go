@@ -40,8 +40,12 @@ func WebsocketHandler(c echo.Context) error {
 	for {
 		var req models.Request
 		// Receive a message using the codec
-		if err := ws.ReadJSON(&req); err != nil {
-			c.Logger().Error(err)
+		if parseErr := ws.ReadJSON(&req); err != nil {
+			c.Logger().Error(parseErr)
+			if err := ws.WriteJSON(parseErr); err != nil {
+				c.Logger().Error(err)
+			}
+			return err
 		}
 		c.Logger().Printf("Received message: %s", req)
 
@@ -57,6 +61,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err := ws.WriteJSON(errResp); err != nil {
 					c.Logger().Error(err)
 				}
+				return err
 			}
 
 			resp := models.Response{
@@ -68,10 +73,11 @@ func WebsocketHandler(c echo.Context) error {
 			if err := ws.WriteJSON(resp); err != nil {
 				c.Logger().Error(err)
 			}
+			return err
 
 		case CmdJoinGame:
 			c.Logger().Print("Joining the game game...")
-			if req.GameInfo.GameId != "" {
+			if req.GameInfo.GameId == "" {
 				errResp := models.ErrorResponse{
 					Code:  http.StatusBadRequest,
 					Error: "No game id provided",
@@ -79,6 +85,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err := ws.WriteJSON(errResp); err != nil {
 					c.Logger().Error(err)
 				}
+				return err
 			}
 
 			gameInfo, err := JoinGame(req.GameInfo.GameId, c)
@@ -90,6 +97,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err := ws.WriteJSON(errResp); err != nil {
 					c.Logger().Error(err)
 				}
+				return err
 			}
 
 			resp := models.Response{
@@ -100,6 +108,7 @@ func WebsocketHandler(c echo.Context) error {
 			}
 			if err := ws.WriteJSON(resp); err != nil {
 				c.Logger().Error(err)
+				return err
 			}
 
 		case CmdNewMove:
@@ -112,6 +121,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err := ws.WriteJSON(errResp); err != nil {
 					c.Logger().Error(err)
 				}
+				return err
 			}
 
 			gameInfo, err := NewMove(req.GameInfo, c)
@@ -123,6 +133,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err := ws.WriteJSON(errResp); err != nil {
 					c.Logger().Error(err)
 				}
+				return err
 			}
 
 			resp := models.Response{
@@ -133,6 +144,7 @@ func WebsocketHandler(c echo.Context) error {
 			}
 			if err := ws.WriteJSON(resp); err != nil {
 				c.Logger().Error(err)
+				return err
 			}
 		}
 	}

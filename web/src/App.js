@@ -13,7 +13,7 @@ class App extends React.Component {
                 <Route path="/" component={IndexPage} exact />
                 <Route path="/game/start" component={GamePage} />
                 <Route path="/game/join" component={JoinGamePage} exact />
-                <Route path="/game/join/:gameCode" component={GamePage} />
+                <Route path="/game/join/:gameId" component={GamePage} />
                 <Route path="/game/ai" component={GamePage} />
             </HashRouter>
         );

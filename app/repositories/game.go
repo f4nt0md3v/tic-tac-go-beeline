@@ -3,6 +3,7 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/f4nt0md3v/tic-tac-go-beeline/app/models"
 )
@@ -81,6 +82,30 @@ func (g *GameRepo) Create(gameId, userId string) (*models.Game, error) {
 	}, nil
 }
 
+type GameRaw struct {
+	ID             int
+	GameId         string
+	FirstUserId    sql.NullString
+	SecondUserId   sql.NullString
+	State          string
+	LastMoveUserId sql.NullString
+	CreatedAt      *time.Time
+	LastModifiedAt *time.Time
+}
+
+func (g *GameRaw) toGame() *models.Game {
+	return &models.Game{
+		ID:             g.ID,
+		GameId:         g.GameId,
+		FirstUserId:    g.FirstUserId.String,
+		SecondUserId:   g.SecondUserId.String,
+		State:          g.State,
+		LastMoveUserId: g.LastMoveUserId.String,
+		CreatedAt:      g.CreatedAt,
+		LastModifiedAt: g.LastModifiedAt,
+	}
+}
+
 func (g *GameRepo) FindByGameID(id string) (*models.Game, error) {
 	stmt, err := g.db.Prepare(queryGetGameById)
 	if err != nil {
@@ -92,23 +117,22 @@ func (g *GameRepo) FindByGameID(id string) (*models.Game, error) {
 		}
 	}()
 
-	var game models.Game
+	var gameRaw GameRaw
 	row := stmt.QueryRow(id)
 	if err := row.Scan(
-		&game.ID,
-		&game.GameId,
-		&game.FirstUserId,
-		&game.SecondUserId,
-		&game.State,
-		&game.LastMoveUserId,
-		&game.CreatedAt,
-		&game.LastModifiedAt,
+		&gameRaw.GameId,
+		&gameRaw.FirstUserId,
+		&gameRaw.SecondUserId,
+		&gameRaw.State,
+		&gameRaw.LastMoveUserId,
+		&gameRaw.CreatedAt,
+		&gameRaw.LastModifiedAt,
 	); err != nil {
 		fmt.Printf("error when trying to get user by id: %s", err)
 		return nil, err
 	}
-
-	return &game, nil
+	game := gameRaw.toGame()
+	return game, nil
 }
 
 func (g *GameRepo) Update(game *models.Game) error {
