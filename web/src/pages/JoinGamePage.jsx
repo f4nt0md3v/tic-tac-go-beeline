@@ -1,7 +1,7 @@
 import React from "react";
-import GamePage from "./GamePage";
 import {Jumbotron} from "reactstrap";
 import {Link} from "react-router-dom";
+import {Redirect} from "react-router";
 
 class JoinGamePage extends React.Component {
     constructor(props) {
@@ -14,7 +14,7 @@ class JoinGamePage extends React.Component {
 
     joinGamePage() {
         if (this.state.gameId !== '' && this.state.canProceed) {
-            return (<GamePage gameCode={this.state.gameId} />)
+            return (<Redirect to={{pathname: `/game/join/${this.state.gameId}`}} />)
         }
 
         return (

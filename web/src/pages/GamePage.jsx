@@ -10,29 +10,7 @@ import {
     Link,
     withRouter,
 } from "react-router-dom";
-import Share from "../components/Share";
-
-const symbolsMap = {
-    2: ["marking", "32"],
-    0: ["marking marking-x", 9587], // represents x
-    1: ["marking marking-o", 9711], // represents o
-};
-
-const patterns = [
-    //horizontal
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    //vertical
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    //diagonal
-    [0, 4, 8],
-    [2, 4, 6]
-];
-
-const AIScore = {2: 1, 0: 2, 1: 0};
+import {AIScore, patterns, symbolsMap} from "../board/board";
 
 class GamePage extends React.Component {
     constructor(props) {
@@ -48,7 +26,8 @@ class GamePage extends React.Component {
             connAlertType: '',
             gameId: this.props.gameCode,
             isInitiator: false,
-            mode: '',
+            lastMoveUserId: '',
+            mode: 'AI',
             opponentId: '',
             shareButtonShow: false,
             turn: 0,
@@ -57,165 +36,11 @@ class GamePage extends React.Component {
         };
         this.handleNewMove = this.handleNewMove.bind(this);
         this.handleReset = this.handleReset.bind(this);
-        this.handleModeChange = this.handleModeChange.bind(this);
-        this.processBoard = this.processBoard.bind(this);
+        this.processBoardState = this.processBoardState.bind(this);
         this.makeAIMove = this.makeAIMove.bind(this);
-        this.connectWebSocket = this.connectWebSocket.bind(this);
-        this.handleWebSocketMessage = this.handleWebSocketMessage.bind(this);
-        this.handleResetConnAlert = this.handleResetConnAlert.bind(this);
     }
 
-    componentDidMount() {
-        const path = window.location.hash;
-        switch (path) {
-            case "#/game/ai":
-                this.setState({mode: 'AI'})
-                break;
-            default:
-                this.setState({mode: '2P'})
-                this.connectWebSocket(() => {
-                    if (path === "#/game/start") {
-                        if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
-                            this.generateNewGame();
-                        }
-                    }
-                    if (path.includes('#/game/join') && this.props.match.params.gameId !== '') {
-                        this.setState({gameId: this.props.match.params.gameId}, () => {
-                            if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
-                                this.joinGame();
-                            }
-                        });
-                    }
-                });
-        }
-    }
-
-    connectWebSocket = (callback) => {
-        let wsUrl = 'ws:';
-        if (window.location.protocol === 'https:') {
-            wsUrl = 'wss:';
-        }
-        wsUrl += "localhost:8081/ws";
-        let ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            console.log("Connected to WebSocket...");
-            this.setState({
-                ws: ws,
-                connAlertShow: true,
-                connAlertText: 'Установлено соединение',
-                connAlertType: 'success',
-            }, () => {
-                setTimeout(this.handleResetConnAlert,3000);
-                callback && callback();
-            });
-        };
-
-        ws.onclose = () => {
-            this.setState({
-                connAlertShow: true,
-                connAlertText: 'Соединение разорвано',
-                connAlertType: 'danger'
-            }, () => {
-                setTimeout(this.handleResetConnAlert,3000);
-            });
-        };
-
-        ws.onmessage = this.handleWebSocketMessage;
-    };
-
-    handleResetConnAlert = () => {
-        this.setState({
-            connAlertShow: false,
-            connAlertText: '',
-        });
-    }
-
-    handleWebSocketMessage = (e) => {
-        const jsonData = JSON.parse(e.data);
-        if (jsonData.command) {
-            // alert(jsonData.command);
-            switch (jsonData.command) {
-                case "GENERATE_NEW_GAME":
-                    if (jsonData.code === 201 && jsonData.gameInfo) {
-                        this.setState({
-                            gameId:          jsonData.gameInfo.gameId,
-                            userId:          jsonData.gameInfo.firstUserId,
-                            boardState:      jsonData.gameInfo.state.split(','),
-                            shareButtonShow: true,
-                            isInitiator:     true,
-                        });
-                    } else {
-                        console.log(jsonData)
-                    }
-                    break;
-                case "JOIN_GAME":
-                    if (jsonData.code === 200 && jsonData.gameInfo) {
-                        if (this.state.isInitiator) {
-                            this.setState({
-                                gameId:          jsonData.gameInfo.gameId,
-                                opponentId:      jsonData.gameInfo.secondUserId,
-                                boardState:      jsonData.gameInfo.state.split(','),
-                                connAlertText:   'Оппонент подключился и готов играть',
-                                connAlertType:   'success',
-                                connAlertShow:   true,
-                                shareButtonShow: false,
-                                active:          true,
-                            }, () => {
-                                setTimeout(this.handleResetConnAlert, 3000);
-                            });
-                        } else {
-                            this.setState({
-                                gameId:        jsonData.gameInfo.gameId,
-                                opponentId:    jsonData.gameInfo.firstUserId,
-                                userId:        jsonData.gameInfo.secondUserId,
-                                boardState:    jsonData.gameInfo.state.split(','),
-                                connAlertShow: true,
-                                connAlertText: 'Вы подключились к игре',
-                                connAlertType: 'success',
-                            }, () => {
-                                setTimeout(this.handleResetConnAlert, 3000);
-                            });
-                        }
-                    } else {
-                        console.log(jsonData)
-                    }
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            if (jsonData.error) {
-                console.log(jsonData)
-            }
-        }
-    }
-
-    generateNewGame = () => {
-        const {ws} = this.state;
-        if (ws || ws.readyState === WebSocket.OPEN) {
-            const message = {
-                command: "GENERATE_NEW_GAME"
-            }
-            ws.send(JSON.stringify(message));
-            this.setState({isInitiator: true});
-        }
-    }
-
-    joinGame = () => {
-        const {ws} = this.state;
-        if (ws || ws.readyState === WebSocket.OPEN) {
-            const message = {
-                command: "JOIN_GAME",
-                gameInfo: {
-                    gameId:  this.state.gameId,
-                }
-            }
-            ws.send(JSON.stringify(message));
-        }
-    }
-
-    processBoard = () => {
+    processBoardState = () => {
         const {
             boardState,
             mode,
@@ -310,7 +135,7 @@ class GamePage extends React.Component {
         });
     }
 
-    handleNewMove = id => {
+    handleNewMove = (id) => {
         this.setState(
             prevState => {
                 return {
@@ -322,20 +147,9 @@ class GamePage extends React.Component {
                 };
             },
             () => {
-                this.processBoard();
+                this.processBoardState();
             }
         );
-    }
-
-    handleModeChange = e => {
-        e.preventDefault();
-        if (e.target.value === "AI") {
-            this.setState({ mode: "AI" });
-            this.handleReset(null);
-        } else if (e.target.value === "2P") {
-            this.setState({ mode: "2P" });
-            this.handleReset(null);
-        }
     }
 
     render() {
@@ -344,9 +158,6 @@ class GamePage extends React.Component {
             alertShow,
             alertText,
             alertType,
-            connAlertShow,
-            connAlertText,
-            connAlertType,
             boardState,
             turn,
         } = this.state;
@@ -365,7 +176,7 @@ class GamePage extends React.Component {
         return (
             <div>
                 <Jumbotron
-                    className={"container"}
+                    className="container"
                 >
                     <h3>Игра "Крестики-Нолики"</h3>
                     <hr/>
@@ -386,14 +197,8 @@ class GamePage extends React.Component {
                         <Alert color={alertType} show={alertShow} isOpen={alertShow}>
                             {alertText}
                         </Alert>
-                        <Alert color={connAlertType} show={connAlertShow} isOpen={connAlertShow}>
-                            {connAlertText}
-                        </Alert>
                     </div>
                 </Jumbotron>
-                {
-                    this.state.mode === '2P' && this.state.shareButtonShow ? <Share gameCode={this.state.gameId}/> : null
-                }
             </div>
         );
     }
