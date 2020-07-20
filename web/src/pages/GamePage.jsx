@@ -43,7 +43,11 @@ class GamePage extends React.Component {
             alertText: '',
             alertType: '',
             boardState: new Array(9).fill(2),
+            connAlertShow: false,
+            connAlertText: '',
+            connAlertType: '',
             gameId: this.props.gameCode,
+            isInitiator: false,
             mode: '',
             opponentId: '',
             shareButtonShow: false,
@@ -58,6 +62,7 @@ class GamePage extends React.Component {
         this.makeAIMove = this.makeAIMove.bind(this);
         this.connectWebSocket = this.connectWebSocket.bind(this);
         this.handleWebSocketMessage = this.handleWebSocketMessage.bind(this);
+        this.handleResetConnAlert = this.handleResetConnAlert.bind(this);
     }
 
     componentDidMount() {
@@ -92,19 +97,44 @@ class GamePage extends React.Component {
         }
         wsUrl += "localhost:8081/ws";
         let ws = new WebSocket(wsUrl);
+
         ws.onopen = () => {
             console.log("Connected to WebSocket...");
-            this.setState({ws: ws}, () => {
+            this.setState({
+                ws: ws,
+                connAlertShow: true,
+                connAlertText: 'Установлено соединение',
+                connAlertType: 'success',
+            }, () => {
+                setTimeout(this.handleResetConnAlert,3000);
                 callback && callback();
             });
         };
+
+        ws.onclose = () => {
+            this.setState({
+                connAlertShow: true,
+                connAlertText: 'Соединение разорвано',
+                connAlertType: 'danger'
+            }, () => {
+                setTimeout(this.handleResetConnAlert,3000);
+            });
+        };
+
         ws.onmessage = this.handleWebSocketMessage;
     };
 
+    handleResetConnAlert = () => {
+        this.setState({
+            connAlertShow: false,
+            connAlertText: '',
+        });
+    }
+
     handleWebSocketMessage = (e) => {
         const jsonData = JSON.parse(e.data);
-        alert(jsonData.command);
         if (jsonData.command) {
+            // alert(jsonData.command);
             switch (jsonData.command) {
                 case "GENERATE_NEW_GAME":
                     if (jsonData.code === 201 && jsonData.gameInfo) {
@@ -113,17 +143,42 @@ class GamePage extends React.Component {
                             userId:          jsonData.gameInfo.firstUserId,
                             boardState:      jsonData.gameInfo.state.split(','),
                             shareButtonShow: true,
+                            isInitiator:     true,
                         });
+                    } else {
+                        console.log(jsonData)
                     }
                     break;
                 case "JOIN_GAME":
                     if (jsonData.code === 200 && jsonData.gameInfo) {
-                        this.setState({
-                            gameId:     jsonData.gameInfo.gameId,
-                            opponentId: jsonData.gameInfo.firstUserId,
-                            userId:     jsonData.gameInfo.secondUserId,
-                            boardState: jsonData.gameInfo.state.split(','),
-                        });
+                        if (this.state.isInitiator) {
+                            this.setState({
+                                gameId:          jsonData.gameInfo.gameId,
+                                opponentId:      jsonData.gameInfo.secondUserId,
+                                boardState:      jsonData.gameInfo.state.split(','),
+                                connAlertText:   'Оппонент подключился и готов играть',
+                                connAlertType:   'success',
+                                connAlertShow:   true,
+                                shareButtonShow: false,
+                                active:          true,
+                            }, () => {
+                                setTimeout(this.handleResetConnAlert, 3000);
+                            });
+                        } else {
+                            this.setState({
+                                gameId:        jsonData.gameInfo.gameId,
+                                opponentId:    jsonData.gameInfo.firstUserId,
+                                userId:        jsonData.gameInfo.secondUserId,
+                                boardState:    jsonData.gameInfo.state.split(','),
+                                connAlertShow: true,
+                                connAlertText: 'Вы подключились к игре',
+                                connAlertType: 'success',
+                            }, () => {
+                                setTimeout(this.handleResetConnAlert, 3000);
+                            });
+                        }
+                    } else {
+                        console.log(jsonData)
                     }
                     break;
                 default:
@@ -142,7 +197,8 @@ class GamePage extends React.Component {
             const message = {
                 command: "GENERATE_NEW_GAME"
             }
-            ws.send(JSON.stringify(message))
+            ws.send(JSON.stringify(message));
+            this.setState({isInitiator: true});
         }
     }
 
@@ -155,7 +211,7 @@ class GamePage extends React.Component {
                     gameId:  this.state.gameId,
                 }
             }
-            ws.send(JSON.stringify(message))
+            ws.send(JSON.stringify(message));
         }
     }
 
@@ -231,13 +287,14 @@ class GamePage extends React.Component {
         });
 
         let maxIndex = 0;
-        scores.reduce(function(maxVal, currentVal, currentIndex) {
+        scores.reduce((maxVal, currentVal, currentIndex) => {
             if (currentVal >= maxVal) {
                 maxIndex = currentIndex;
                 return currentVal;
             }
             return maxVal;
         });
+
         this.handleNewMove(empty[maxIndex]);
     }
 
@@ -284,9 +341,12 @@ class GamePage extends React.Component {
     render() {
         const {
             active,
+            alertShow,
             alertText,
             alertType,
-            alertShow,
+            connAlertShow,
+            connAlertText,
+            connAlertType,
             boardState,
             turn,
         } = this.state;
@@ -323,8 +383,11 @@ class GamePage extends React.Component {
                         {rows}
                     </div>
                     <div className="alert-container">
-                        <Alert variant={alertType} show={alertShow} isOpen={alertShow}>
+                        <Alert color={alertType} show={alertShow} isOpen={alertShow}>
                             {alertText}
+                        </Alert>
+                        <Alert color={connAlertType} show={connAlertShow} isOpen={connAlertShow}>
+                            {connAlertText}
                         </Alert>
                     </div>
                 </Jumbotron>
