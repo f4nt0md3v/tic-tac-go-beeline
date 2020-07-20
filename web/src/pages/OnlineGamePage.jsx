@@ -65,7 +65,7 @@ class OnlineGamePage extends React.Component {
         if (window.location.protocol === 'https:') {
             wsUrl = 'wss:';
         }
-        wsUrl += "localhost:8081/ws";
+        wsUrl += window.location.host + '/ws';
         let ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -84,7 +84,7 @@ class OnlineGamePage extends React.Component {
         ws.onclose = () => {
             this.setState({
                 connAlertShow: true,
-                connAlertText: 'Соединение разорвано',
+                connAlertText: 'Не удалось установить соединение с сервером',
                 connAlertType: 'danger'
             }, () => {
                 setTimeout(this.handleResetConnAlert,3000);
@@ -149,6 +149,15 @@ class OnlineGamePage extends React.Component {
                         }
                     } else {
                         console.log(jsonData)
+                        if (jsonData.error === 'sql: no rows in result set') {
+                            this.setState({
+                                connAlertShow: true,
+                                connAlertText: 'Игра с данным кодом не найдена. Попробуйте другой код.',
+                                connAlertType: 'danger'
+                            }, () => {
+                                setTimeout(this.handleResetConnAlert,3000);
+                            });
+                        }
                     }
                     break;
                 case "NEW_MOVE":

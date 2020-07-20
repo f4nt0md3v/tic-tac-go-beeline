@@ -67,6 +67,7 @@ func (g *GameRepo) Create(gameId, userId string) (*game.Game, error) {
 
 	_, err = stmt.Exec(gameId, userId, initState)
 	if err != nil {
+		g.logger.Errorf("error when trying to create game: %s", err)
 		return nil, err
 	}
 
@@ -125,7 +126,7 @@ func (g *GameRepo) FindByGameID(id string) (*game.Game, error) {
 		&gameRaw.CreatedAt,
 		&gameRaw.LastModifiedAt,
 	); err != nil {
-		g.logger.Errorf("error when trying to get user by id: %s", err)
+		g.logger.Errorf("error when trying to get game by id: %s", err)
 		return nil, err
 	}
 	gm := gameRaw.toGame()

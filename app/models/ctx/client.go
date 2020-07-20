@@ -36,21 +36,21 @@ func (p *Pool) Start() {
 		case client := <-p.Register:
 			p.Clients[client] = true
 			p.Logger.Info("Size of Connection Pool: ", len(p.Clients))
-			for client := range p.Clients {
-				_ = client.Conn.WriteJSON(data.Response{Message: "New User Joined..."})
+			for c := range p.Clients {
+				_ = c.Conn.WriteJSON(data.Response{Message: "New User Joined..."})
 			}
 			break
 		case client := <-p.Unregister:
 			delete(p.Clients, client)
 			p.Logger.Info("Size of Connection Pool: ", len(p.Clients))
-			for client := range p.Clients {
-				_ = client.Conn.WriteJSON(data.Response{Message: "User Disconnected..."})
+			for c := range p.Clients {
+				_ = c.Conn.WriteJSON(data.Response{Message: "User Disconnected..."})
 			}
 			break
 		case message := <-p.Broadcast:
 			p.Logger.Info("Broadcast a message to all clients in Pool of connections...")
-			for client := range p.Clients {
-				if err := client.Conn.WriteJSON(message); err != nil {
+			for c := range p.Clients {
+				if err := c.Conn.WriteJSON(message); err != nil {
 					p.Logger.Error(err)
 					return
 				}
