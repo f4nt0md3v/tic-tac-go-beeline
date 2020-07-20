@@ -1,10 +1,5 @@
 import React from "react";
-
-const symbolsMap = {
-    2: ["marking", "32"],
-    0: ["marking marking-x", 9587],
-    1: ["marking marking-o", 9711]
-};
+import {symbolsMap} from "../board/board";
 
 class Cell extends React.Component {
     constructor(props) {

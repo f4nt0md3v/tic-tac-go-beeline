@@ -2,6 +2,7 @@ import React from "react";
 import {Jumbotron} from "reactstrap";
 import {Link} from "react-router-dom";
 import {Redirect} from "react-router";
+import Header from "../components/Header";
 
 class JoinGamePage extends React.Component {
     constructor(props) {
@@ -22,8 +23,7 @@ class JoinGamePage extends React.Component {
                 <Jumbotron
                     className={"container"}
                 >
-                    <h3>Игра "Крестики-Нолики"</h3>
-                    <hr/>
+                    <Header/>
                     <div>
                         <div>
                             <fieldset className="form-group">

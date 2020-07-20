@@ -163,15 +163,15 @@ func ProcessRequest(req *data.Request, appCtx *AppContext) *data.Response {
 
 	case CmdNewMove:
 		appCtx.Logger.Info("Making a move...")
-		if req.GameInfo.GameId != "" && req.GameInfo.State != "" {
+		if req.GameInfo.GameId == "" && req.GameInfo.State == "" {
 			errResp := &data.Response{
 				Code:  http.StatusBadRequest,
-				Error: "No game state provided",
+				Error: "No game info provided",
 			}
 			return errResp
 		}
 
-		gameInfo, err := NewMove(req.GameInfo, appCtx)
+		gameInfo, err := NewMove(*req.GameInfo, appCtx)
 		if err != nil {
 			errResp := &data.Response{
 				Code:  http.StatusInternalServerError,
@@ -217,12 +217,6 @@ func JoinGame(gameId string, ctx *AppContext) (*game.Game, error) {
 	// Generate new user id
 	userId := uuid.NewV4().String()
 	ctx.Logger.Infof("user_id: %s\n", userId)
-
-	// TODO: this fixes the bug with attempt to connect to ongoing game but for now keep it
-	// if curGame.SecondUserId != "" {
-	// 	err := errors.New("can't join game")
-	// 	return nil, err
-	// }
 
 	// Register new user as second user
 	curGame.SecondUserId = userId

@@ -11,6 +11,7 @@ import {
     withRouter,
 } from "react-router-dom";
 import {AIScore, patterns, symbolsMap} from "../board/board";
+import Header from "../components/Header";
 
 class GamePage extends React.Component {
     constructor(props) {
@@ -178,8 +179,7 @@ class GamePage extends React.Component {
                 <Jumbotron
                     className="container"
                 >
-                    <h3>Игра "Крестики-Нолики"</h3>
-                    <hr/>
+                    <Header/>
                     <div>
                         {this.state.mode === "AI"
                             ?

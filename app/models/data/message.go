@@ -3,9 +3,9 @@ package data
 import "github.com/f4nt0md3v/tic-tac-go-beeline/app/models/game"
 
 type Request struct {
-	Command  string    `json:"command,omitempty"`
-	GameInfo game.Game `json:"gameInfo,omitempty"`
-	Message  string    `json:"message,omitempty"`
+	Command  string     `json:"command,omitempty"`
+	GameInfo *game.Game `json:"gameInfo,omitempty"`
+	Message  string     `json:"message,omitempty"`
 }
 
 type TypeMessage int

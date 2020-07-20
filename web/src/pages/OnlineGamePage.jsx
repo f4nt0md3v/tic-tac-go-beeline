@@ -7,17 +7,17 @@ import {
     Jumbotron,
 } from "reactstrap";
 import {
-    Link,
     withRouter,
 } from "react-router-dom";
 import Share from "../components/Share";
 import {patterns, symbolsMap} from "../board/board";
+import Header from "../components/Header";
 
 class OnlineGamePage extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            active: true,
+            active: false,
             alertShow: false,
             alertText: '',
             alertType: '',
@@ -28,7 +28,6 @@ class OnlineGamePage extends React.Component {
             gameId: this.props.gameCode,
             isInitiator: false,
             lastMoveUserId: '',
-            mode: '',
             opponentId: '',
             shareButtonShow: false,
             turn: 0,
@@ -45,7 +44,6 @@ class OnlineGamePage extends React.Component {
 
     componentDidMount() {
         const path = window.location.hash;
-        this.setState({mode: '2P'});
         this.connectWebSocket(() => {
             if (path === "#/game/start") {
                 if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
@@ -106,7 +104,6 @@ class OnlineGamePage extends React.Component {
     handleWebSocketMessage = (e) => {
         const jsonData = JSON.parse(e.data);
         if (jsonData.command) {
-            // alert(jsonData.command);
             switch (jsonData.command) {
                 case "GENERATE_NEW_GAME":
                     if (jsonData.code === 201 && jsonData.gameInfo) {
@@ -145,6 +142,7 @@ class OnlineGamePage extends React.Component {
                                 connAlertShow: true,
                                 connAlertText: 'Вы подключились к игре',
                                 connAlertType: 'success',
+                                active:        true,
                             }, () => {
                                 setTimeout(this.handleResetConnAlert, 3000);
                             });
@@ -155,12 +153,15 @@ class OnlineGamePage extends React.Component {
                     break;
                 case "NEW_MOVE":
                     if (jsonData.code === 200 && jsonData.gameInfo) {
-                        this.setState({
-                            gameId:          jsonData.gameInfo.gameId,
-                            userId:          jsonData.gameInfo.firstUserId,
-                            boardState:      jsonData.gameInfo.state.split(',').map(Number),
-                            shareButtonShow: true,
-                            isInitiator:     true,
+                        this.setState(prevState => {
+                            return {
+                                gameId:          jsonData.gameInfo.gameId,
+                                boardState:      jsonData.gameInfo.state.split(',').map(Number),
+                                lastMoveUserId:  jsonData.gameInfo.lastMoveUserId,
+                                turn:            (prevState.turn + 1) % 2
+                            };
+                        }, () => {
+                            this.processBoard();
                         });
                     } else {
                         console.log(jsonData)
@@ -208,12 +209,12 @@ class OnlineGamePage extends React.Component {
                 command: "NEW_MOVE",
                 gameInfo: {
                     gameId:  this.state.gameId,
-                    state:   this.state.state,
-                    lastMoveUserId: this.state.lastMoveUserId,
+                    state:   this.state.boardState.join(),
+                    lastMoveUserId: this.state.userId,
                 }
             }
+            console.log(JSON.stringify(message))
             ws.send(JSON.stringify(message));
-            this.setState({active: false});
         }
     }
 
@@ -265,14 +266,11 @@ class OnlineGamePage extends React.Component {
                         .slice(0, id)
                         .concat(prevState.turn)
                         .concat(prevState.boardState.slice(id + 1)),
-                    turn: (prevState.turn + 1) % 2
                 };
             },
             () => {
                 this.processBoard();
-                if (this.state.mode === '2P') {
-                    this.sendMoveToServer();
-                }
+                this.sendMoveToServer();
             }
         );
     }
@@ -283,13 +281,17 @@ class OnlineGamePage extends React.Component {
             alertShow,
             alertText,
             alertType,
+            boardState,
             connAlertShow,
             connAlertText,
             connAlertType,
-            boardState,
+            lastMoveUserId,
             turn,
+            userId,
         } = this.state;
         const rows = [];
+
+        const isActive = active && (userId !== lastMoveUserId);
 
         for (let i = 0; i < 3; i++)
             rows.push(
@@ -298,7 +300,7 @@ class OnlineGamePage extends React.Component {
                     row={i}
                     boardState={boardState}
                     onNewMove={this.handleNewMove}
-                    active={active}
+                    active={isActive}
                 />
             );
         return (
@@ -306,9 +308,7 @@ class OnlineGamePage extends React.Component {
                 <Jumbotron
                     className="container"
                 >
-                    <h3>Игра "Крестики-Нолики"</h3>
-                    <hr/>
-                    <br/>
+                    <Header/>
                     <p>Очередь за {String.fromCharCode(symbolsMap[turn][1])}</p>
                     <br/>
                     <div className="board">
@@ -324,7 +324,7 @@ class OnlineGamePage extends React.Component {
                     </div>
                 </Jumbotron>
                 {
-                    this.state.mode === '2P' && this.state.shareButtonShow ? <Share gameCode={this.state.gameId}/> : null
+                    this.state.shareButtonShow ? <Share gameCode={this.state.gameId}/> : null
                 }
             </div>
         );
